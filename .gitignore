@@ -1,0 +1,35 @@
+# Python (backend)
+backend/.venv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/**/*.py[cod]
+backend/**/*.pyo
+backend/.env
+backend/.env.*
+!backend/.env.example
+
+# Node / Next.js (frontend)
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/.env.local
+frontend/.env*.local
+!frontend/.env.local.example
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE / editor (optional — remove a line if you want to share that config)
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Cursor (local agent state)
+.cursor/
