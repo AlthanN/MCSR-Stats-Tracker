@@ -29,6 +29,7 @@ export interface PlayerData {
   country: string | null;
   highestElo: number | null;
   currentElo: number | null;
+  seasonElo?: number | null;
   playTime: number | null;
   seasonMatchesInfo: SeasonMatchesInfo;
   allTime: AllTimeStats;
@@ -166,11 +167,6 @@ export interface FullProfile {
   splits: SplitStat[];
   seedTypes: SeedTypePerformance[];
   recentRuns: RecentRun[];
-}
-
-export interface TrendingPlayer {
-  name: string;
-  currentElo: number | null;
 }
 
 export interface MatchSummary {

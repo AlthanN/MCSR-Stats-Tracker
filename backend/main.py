@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from models.player import PlayerData
 from models.match import MatchListResponse, MatchDetail
-from models.profile import FullProfile, RunDetail, TrendingPlayer
+from models.profile import FullProfile, RunDetail
 from services.mcsr_client import (
     DEFAULT_MATCH_COUNT,
     MAX_MATCH_COUNT,
@@ -17,7 +17,6 @@ from services.mcsr_client import (
 )
 from services.parsers import parse_player_data, parse_match_list, parse_match_detail
 from services.analytics import build_analytics, build_run_detail
-from services.trending import get_trending, record_lookup
 from services.season import get_current_season, resolve_season
 
 
@@ -44,11 +43,6 @@ async def current_season():
     return {"currentSeason": season}
 
 
-@app.get("/players/trending", response_model=list[TrendingPlayer])
-async def trending_players():
-    return get_trending()
-
-
 @app.get("/players/{username}", response_model=FullProfile)
 async def get_player_profile(
     username: str,
@@ -58,7 +52,7 @@ async def get_player_profile(
     current = await get_current_season()
     selected_season = await resolve_season(season)
 
-    raw = await fetch_user_data(username)
+    raw = await fetch_user_data(username, season=selected_season)
     if raw is None:
         raise HTTPException(status_code=502, detail="Failed to reach MCSR API")
     if not raw.get("data"):
@@ -66,7 +60,9 @@ async def get_player_profile(
             status_code=404, detail=f"Player '{username}' not found"
         )
 
-    player_data = parse_player_data(raw)
+    player_data = parse_player_data(
+        raw, selected_season=selected_season, current_season=current
+    )
     player_uuid = raw["data"].get("uuid")
     if not player_uuid:
         raise HTTPException(status_code=502, detail="Player UUID missing from MCSR API")
@@ -77,8 +73,6 @@ async def get_player_profile(
         match_count=match_count,
         season=selected_season,
     )
-
-    record_lookup(player_data.get("name"), player_data.get("currentElo"))
 
     return {
         "player": player_data,

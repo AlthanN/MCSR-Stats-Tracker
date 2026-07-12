@@ -4,7 +4,7 @@ from collections import defaultdict
 from datetime import datetime, timezone
 
 from services.mcsr_client import DEFAULT_MATCH_COUNT, fetch_match_data, fetch_specific_match_data
-from services.parsers import parse_match_detail, TARGET_TIMELINE_TYPES
+from services.parsers import parse_match_detail
 
 CHECKPOINT_KEYS = [
     "firstStructure",
@@ -122,11 +122,11 @@ def _extract_checkpoint_times(events: list[dict]) -> dict[str, float | None]:
 
 
 def _extract_split_times(events: list[dict]) -> dict[str, float]:
-    """Earliest time per split type for a single run."""
+    """Earliest time per progression split for a single run."""
     splits: dict[str, float] = {}
     for event in events:
         event_type = event.get("type")
-        if event_type not in TARGET_TIMELINE_TYPES:
+        if event_type not in SPLIT_EVENT_TYPES:
             continue
         time_val = event.get("time")
         if time_val is None:
@@ -587,7 +587,7 @@ async def build_analytics(
     for split_type in sorted(
         split_values.keys(),
         key=lambda t: (
-            statistics.mean(split_values[t]) if split_values[t] else float("inf")
+            SPLIT_ORDER.index(t) if t in SPLIT_ORDER else len(SPLIT_ORDER)
         ),
     ):
         stats = _aggregate(split_values[split_type])

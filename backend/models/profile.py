@@ -88,8 +88,3 @@ class FullProfile(BaseModel):
     splits: list[SplitStat]
     seedTypes: list[SeedTypePerformance]
     recentRuns: list[RecentRun]
-
-
-class TrendingPlayer(BaseModel):
-    name: str
-    currentElo: int | None = None

@@ -26,6 +26,7 @@ export default function SplitBreakdownTable({
           </thead>
           <tbody>
             {splits.map((s, i) => {
+              let skip = s.splitName != "Death"
               const isTight =
                 s.consistency !== null && s.consistency < 0.08;
               return (
@@ -39,7 +40,7 @@ export default function SplitBreakdownTable({
                 >
                   <td className="px-4 py-2.5 text-ink font-medium">
                     <span className="inline-flex items-center gap-2">
-                      {isTight && (
+                      {isTight && skip && (
                         <span
                           className="w-1.5 h-1.5 rounded-full bg-green shadow-glow"
                           aria-label="consistent split"

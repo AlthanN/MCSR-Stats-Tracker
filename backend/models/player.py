@@ -30,6 +30,7 @@ class PlayerData(BaseModel):
     country: str | None = None
     highestElo: int | None = None
     currentElo: int | None = None
+    seasonElo: int | None = None
     playTime: int | None = None
     seasonMatchesInfo: SeasonMatchesInfo
     allTime: AllTimeStats

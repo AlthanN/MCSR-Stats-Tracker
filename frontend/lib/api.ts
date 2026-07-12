@@ -1,7 +1,6 @@
 import type {
   FullProfile,
   RunDetail,
-  TrendingPlayer,
   MatchListResponse,
   MatchDetail,
   PlayerData,
@@ -116,10 +115,3 @@ export function fetchRunDetail(
     0
   );
 }
-
-/** Recently searched / default trending runners for the homepage. */
-export function fetchTrendingPlayers(): Promise<TrendingPlayer[]> {
-  return getJson<TrendingPlayer[]>("/players/trending", 60);
-}
-
-export { type TrendingPlayer };

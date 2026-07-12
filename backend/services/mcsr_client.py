@@ -43,11 +43,16 @@ def _ensure_client() -> httpx.AsyncClient:
     return _client
 
 
-async def fetch_user_data(username: str) -> dict | None:
+async def fetch_user_data(
+    username: str, season: int | None = None
+) -> dict | None:
     """Raw player profile payload from MCSR."""
     client = _ensure_client()
+    params: dict = {}
+    if season is not None:
+        params["season"] = season
     try:
-        resp = await client.get(f"/users/{username}")
+        resp = await client.get(f"/users/{username}", params=params or None)
         resp.raise_for_status()
         return resp.json()
     except httpx.HTTPError as e:

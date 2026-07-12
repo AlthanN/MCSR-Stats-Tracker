@@ -1,11 +1,18 @@
 from collections import Counter
 
 
-def parse_player_data(raw: dict) -> dict:
+def parse_player_data(
+    raw: dict,
+    *,
+    selected_season: int | None = None,
+    current_season: int | None = None,
+) -> dict:
     """raw = full JSON from GET /users/{username}"""
     player_data = raw.get("data", {})
     season_stats = player_data.get("statistics", {}).get("season", {})
     total_stats = player_data.get("statistics", {}).get("total", {})
+    season_result = player_data.get("seasonResult") or {}
+    last_result = season_result.get("last") or {}
 
     completion_time = season_stats.get("completionTime", {}).get("ranked", 0)
     completions = season_stats.get("completions", {}).get("ranked", 0)
@@ -23,11 +30,22 @@ def parse_player_data(raw: dict) -> dict:
 
     timestamp = player_data.get("timestamp", {})
 
+    live_elo = player_data.get("eloRate")
+    if (
+        selected_season is not None
+        and current_season is not None
+        and selected_season == current_season
+    ):
+        season_elo = live_elo
+    else:
+        season_elo = last_result.get("eloRate")
+
     return {
         "name": player_data.get("nickname"),
         "country": player_data.get("country"),
-        "highestElo": player_data.get("seasonResult", {}).get("highest"),
-        "currentElo": player_data.get("eloRate"),
+        "highestElo": season_result.get("highest"),
+        "currentElo": live_elo,
+        "seasonElo": season_elo,
         "playTime": total_stats.get("playtime", {}).get("ranked"),
         "seasonMatchesInfo": {
             "bestTime": season_stats.get("bestTime", {}).get("ranked"),

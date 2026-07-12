@@ -29,6 +29,83 @@ export function formatElo(elo: number | null | undefined): string {
   return Math.round(elo).toString();
 }
 
+export interface RankTier {
+  label: string;
+  material: string;
+}
+
+/** MCSR ranked tier from current Elo. Null elo = still in placement (Unrated). */
+export function getRankTier(elo: number | null | undefined): RankTier {
+  if (elo === null || elo === undefined) {
+    return { label: "Unrated", material: "unrated" };
+  }
+
+  const e = Math.floor(elo);
+
+  if (e >= 2000) return { label: "Netherite", material: "netherite" };
+  if (e >= 1800) return { label: "Diamond 3", material: "diamond" };
+  if (e >= 1650) return { label: "Diamond 2", material: "diamond" };
+  if (e >= 1500) return { label: "Diamond 1", material: "diamond" };
+  if (e >= 1400) return { label: "Emerald 3", material: "emerald" };
+  if (e >= 1300) return { label: "Emerald 2", material: "emerald" };
+  if (e >= 1200) return { label: "Emerald 1", material: "emerald" };
+  if (e >= 1100) return { label: "Gold 3", material: "gold" };
+  if (e >= 1000) return { label: "Gold 2", material: "gold" };
+  if (e >= 900) return { label: "Gold 1", material: "gold" };
+  if (e >= 800) return { label: "Iron 3", material: "iron" };
+  if (e >= 700) return { label: "Iron 2", material: "iron" };
+  if (e >= 600) return { label: "Iron 1", material: "iron" };
+  if (e >= 500) return { label: "Coal 3", material: "coal" };
+  if (e >= 400) return { label: "Coal 2", material: "coal" };
+  return { label: "Coal 1", material: "coal" };
+}
+
+export function formatRankTier(elo: number | null | undefined): string {
+  return getRankTier(elo).label;
+}
+
+export function rankTierClass(material: string): string {
+  switch (material) {
+    case "unrated":
+      return "text-ink-faint";
+    case "coal":
+      return "text-neutral-600";
+    case "iron":
+      return "text-ink";
+    case "gold":
+      return "text-gold";
+    case "emerald":
+      return "text-green";
+    case "diamond":
+      return "text-sky-300";
+    case "netherite":
+      return "text-purple-700";
+    default:
+      return "text-ink-muted";
+  }
+}
+
+export function rankTierBorderClass(material: string): string {
+  switch (material) {
+    case "unrated":
+      return "border-border";
+    case "coal":
+      return "border-neutral-600/50";
+    case "iron":
+      return "border-border-bright";
+    case "gold":
+      return "border-gold-dim/40";
+    case "emerald":
+      return "border-green-muted";
+    case "diamond":
+      return "border-sky-300/40";
+    case "netherite":
+      return "border-purple-700/50";
+    default:
+      return "border-border";
+  }
+}
+
 export function formatRelativeDate(iso: string): string {
   const date = new Date(iso);
   const diffMs = Date.now() - date.getTime();

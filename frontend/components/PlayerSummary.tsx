@@ -6,6 +6,9 @@ import {
   formatCountry,
   avatarUrl,
   computeCompletionRate,
+  getRankTier,
+  rankTierClass,
+  rankTierBorderClass,
 } from "@/lib/format";
 
 export default function PlayerSummary({ profile }: { profile: FullProfile }) {
@@ -24,6 +27,9 @@ export default function PlayerSummary({ profile }: { profile: FullProfile }) {
     ? seasonStats.averageCompletionTime
     : seasonProfile.averageCompletionTime;
   const allTimePb = player.allTime.bestTime;
+  const seasonElo = player.seasonElo ?? player.currentElo;
+  const rank = getRankTier(seasonElo);
+  const isCurrentSeason = meta.selectedSeason === meta.currentSeason;
 
   return (
     <header className="card px-6 py-5 flex flex-col gap-6">
@@ -47,13 +53,27 @@ export default function PlayerSummary({ profile }: { profile: FullProfile }) {
             <h1 className="text-2xl font-bold text-ink leading-tight">
               {player.name ?? "Unknown"}
             </h1>
-            <div className="text-xs text-ink-muted mt-0.5">
-              elo {formatElo(player.currentElo)}{" "}
-              <span className="text-gold-dim">
-                (peak {formatElo(player.highestElo)})
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1">
+              <span
+                className={[
+                  "text-[10px] uppercase tracking-widest font-bold border rounded-sm px-1.5 py-px",
+                  rankTierClass(rank.material),
+                  rankTierBorderClass(rank.material),
+                ].join(" ")}
+              >
+                {rank.label}
+              </span>
+              <span className="text-xs text-ink-muted">
+                elo {formatElo(seasonElo)}{" "}
+                <span className="text-gold-dim">
+                  (peak {formatElo(player.highestElo)})
+                </span>
+                {!isCurrentSeason && (
+                  <span className="text-ink-faint"> · S{meta.selectedSeason}</span>
+                )}
               </span>
             </div>
-            {meta.selectedSeason === meta.currentSeason &&
+            {isCurrentSeason &&
               seasonProfile.currentWinStreak !== null &&
               seasonProfile.currentWinStreak > 0 && (
                 <div className="text-[10px] text-green-dim mt-1 tracking-wide">
