@@ -1,8 +1,14 @@
 export default function PlayerLoadingSkeleton({
   username,
+  message,
 }: {
   username?: string;
+  message?: string;
 }) {
+  const label =
+    message ??
+    (username ? `FETCHING ${username.toUpperCase()}…` : "FETCHING SPLITS…");
+
   return (
     <div className="min-h-screen flex flex-col bg-bg">
       <div className="px-4 sm:px-8 py-4 border-b border-border">
@@ -14,9 +20,7 @@ export default function PlayerLoadingSkeleton({
         <div className="h-56 card animate-pulse-glow" />
         <div className="h-48 card animate-pulse-glow" />
         <p className="text-center text-ink-faint text-xs tracking-widest">
-          {username
-            ? `FETCHING ${username.toUpperCase()}…`
-            : "FETCHING SPLITS…"}
+          {label}
         </p>
       </div>
     </div>

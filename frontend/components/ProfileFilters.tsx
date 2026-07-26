@@ -1,8 +1,9 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useState, useTransition } from "react";
 import type { ProfileMeta } from "@/lib/types";
+import PlayerLoadingSkeleton from "./PlayerLoadingSkeleton";
 
 export const MATCH_COUNT_OPTIONS = [100, 250, 500] as const;
 
@@ -17,20 +18,27 @@ export default function ProfileFilters({
   const searchParams = useSearchParams();
   const [season, setSeason] = useState(String(meta.selectedSeason));
   const [count, setCount] = useState(String(meta.matchCount));
+  const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
     setSeason(String(meta.selectedSeason));
     setCount(String(meta.matchCount));
   }, [meta.selectedSeason, meta.matchCount]);
 
+  function navigateWithParams(params: URLSearchParams) {
+    startTransition(() => {
+      router.push(
+        `/player/${encodeURIComponent(username)}?${params.toString()}`
+      );
+    });
+  }
+
   function applyFilters(e: FormEvent) {
     e.preventDefault();
     const params = new URLSearchParams(searchParams.toString());
     params.set("season", season);
     params.set("count", count);
-    router.push(
-      `/player/${encodeURIComponent(username)}?${params.toString()}`
-    );
+    navigateWithParams(params);
   }
 
   function resetToCurrent() {
@@ -38,9 +46,7 @@ export default function ProfileFilters({
     const params = new URLSearchParams(searchParams.toString());
     params.delete("season");
     params.set("count", count);
-    router.push(
-      `/player/${encodeURIComponent(username)}?${params.toString()}`
-    );
+    navigateWithParams(params);
   }
 
   const isCurrentSeason = meta.selectedSeason === meta.currentSeason;
@@ -51,6 +57,18 @@ export default function ProfileFilters({
     : ([...MATCH_COUNT_OPTIONS, meta.matchCount] as number[]).sort(
         (a, b) => a - b
       );
+
+  if (isPending) {
+    return (
+      <div
+        className="fixed inset-0 z-50 overflow-y-auto"
+        aria-busy="true"
+        aria-live="polite"
+      >
+        <PlayerLoadingSkeleton message="APPLYING FILTERS…" />
+      </div>
+    );
+  }
 
   return (
     <section className="card px-4 py-4">
