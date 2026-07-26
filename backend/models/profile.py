@@ -28,12 +28,14 @@ class RecentRun(BaseModel):
     id: str
     date: str
     finalTimeMs: int | None = None
-    result: str  # completed | forfeit | reset
+    result: str  # completed | forfeit | reset | decay
     opponent: str | None = None
     seedType: str | None = None
     won: bool = False
     winnerName: str | None = None
     isDraw: bool = False
+    isDecay: bool = False
+    eloChange: int | None = None
 
 
 class MatchEvent(BaseModel):

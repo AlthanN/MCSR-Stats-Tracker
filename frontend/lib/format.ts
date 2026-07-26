@@ -29,6 +29,14 @@ export function formatElo(elo: number | null | undefined): string {
   return Math.round(elo).toString();
 }
 
+/** Signed Elo delta, e.g. "-5" or "+12". */
+export function formatEloChange(change: number | null | undefined): string {
+  if (change === null || change === undefined) return "—";
+  const rounded = Math.round(change);
+  if (rounded > 0) return `+${rounded}`;
+  return String(rounded);
+}
+
 export interface RankTier {
   label: string;
   material: string;

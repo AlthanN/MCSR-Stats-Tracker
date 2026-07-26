@@ -30,7 +30,7 @@ def parse_player_data(
 
     timestamp = player_data.get("timestamp", {})
 
-    live_elo = player_data.get("eloRate")
+    live_elo = season_result.get('last', {}).get('eloRate')
     if (
         selected_season is not None
         and current_season is not None

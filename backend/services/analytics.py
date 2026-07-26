@@ -227,6 +227,18 @@ def _is_official_draw(result_obj: dict | None) -> bool:
     return bool(result_obj is not None and result_obj.get("uuid") is None)
 
 
+def _is_decay_match(match: dict) -> bool:
+    """Synthetic inactivity entry — not a real ranked match."""
+    return bool(match.get("decayed"))
+
+
+def _player_elo_change(match: dict, player_uuid: str) -> int | None:
+    for change in match.get("changes") or []:
+        if change.get("uuid") == player_uuid and change.get("change") is not None:
+            return int(change["change"])
+    return None
+
+
 def _match_won(
     match: dict, player_uuid: str, forfeit_by_id: dict[str, bool]
 ) -> bool:
@@ -424,6 +436,8 @@ def _compute_win_streaks_from_matches(
 
     current = 0
     for match in ordered:
+        if _is_decay_match(match):
+            break
         if _match_won(match, player_uuid, forfeit_by_id):
             current += 1
         else:
@@ -432,6 +446,9 @@ def _compute_win_streaks_from_matches(
     highest = 0
     streak = 0
     for match in sorted(matches_data, key=lambda m: m.get("date") or 0):
+        if _is_decay_match(match):
+            streak = 0
+            continue
         if _match_won(match, player_uuid, forfeit_by_id):
             streak += 1
             highest = max(highest, streak)
@@ -449,6 +466,8 @@ def _count_match_outcomes(
     """Count wins, losses, and player forfeits from the season match list."""
     wins = losses = forfeits = 0
     for match in matches_data:
+        if _is_decay_match(match):
+            continue
         match_id = str(match.get("id"))
         player_ff = forfeit_by_id.get(match_id, False)
         if player_ff:
@@ -498,7 +517,8 @@ def _compute_season_stats(
         matches_data, player_uuid, forfeit_by_id
     )
     played = len(matches_data)
-    draws = played - wins - losses
+    decays = sum(1 for m in matches_data if _is_decay_match(m))
+    draws = played - wins - losses - decays
     completions = sum(1 for r in runs if r.result == "completed")
     finish_times = [
         r.finish_time for r in runs if r.result == "completed" and r.finish_time
@@ -560,10 +580,11 @@ async def build_analytics(
             m.get("forfeited"),
         )
         for m in matches_data
-        if m.get("id") is not None
+        if m.get("id") is not None and not _is_decay_match(m)
     ]
     results = await asyncio.gather(*tasks)
     runs = [r for r in results if r is not None]
+    parsed_by_id = {r.match_id: r for r in runs}
     forfeit_by_id = {r.match_id: r.player_forfeited for r in runs}
 
     # Checkpoint aggregation across completed runs only.
@@ -603,20 +624,49 @@ async def build_analytics(
 
     seed_types = _compute_seed_performance(runs)
 
-    recent_runs = [
-        {
-            "id": run.match_id,
-            "date": _iso_date(run.date),
-            "finalTimeMs": run.match_duration,
-            "result": run.result,
-            "opponent": run.opponent,
-            "seedType": run.seed_type,
-            "won": run.won,
-            "winnerName": run.winner_name,
-            "isDraw": run.is_draw,
-        }
-        for run in runs
-    ]
+    recent_runs = []
+    for match in matches_data:
+        match_id = match.get("id")
+        if match_id is None:
+            continue
+        mid = str(match_id)
+
+        if _is_decay_match(match):
+            recent_runs.append(
+                {
+                    "id": mid,
+                    "date": _iso_date(match.get("date")),
+                    "finalTimeMs": None,
+                    "result": "decay",
+                    "opponent": None,
+                    "seedType": None,
+                    "won": False,
+                    "winnerName": None,
+                    "isDraw": False,
+                    "isDecay": True,
+                    "eloChange": _player_elo_change(match, player_uuid),
+                }
+            )
+            continue
+
+        run = parsed_by_id.get(mid)
+        if run is None:
+            continue
+        recent_runs.append(
+            {
+                "id": run.match_id,
+                "date": _iso_date(run.date),
+                "finalTimeMs": run.match_duration,
+                "result": run.result,
+                "opponent": run.opponent,
+                "seedType": run.seed_type,
+                "won": run.won,
+                "winnerName": run.winner_name,
+                "isDraw": run.is_draw,
+                "isDecay": False,
+                "eloChange": None,
+            }
+        )
     recent_runs.sort(key=lambda r: r["date"], reverse=True)
 
     return {

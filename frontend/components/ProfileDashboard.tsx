@@ -28,6 +28,7 @@ export default function ProfileDashboard({
   const hasData = hasMatchData ?? (profile.recentRuns?.length ?? 0) > 0;
 
   async function handleSelectRun(run: RecentRun) {
+    if (run.isDecay) return;
     setModalOpen(true);
     setLoadingRun(true);
     setActiveRun(null);

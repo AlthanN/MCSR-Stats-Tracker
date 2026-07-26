@@ -100,7 +100,7 @@ export interface MatchEvent {
   timeMs: number;
 }
 
-export type RunResult = "completed" | "forfeit" | "reset";
+export type RunResult = "completed" | "forfeit" | "reset" | "decay";
 
 export interface RecentRun {
   id: string;
@@ -112,6 +112,8 @@ export interface RecentRun {
   won?: boolean;
   winnerName?: string | null;
   isDraw?: boolean;
+  isDecay?: boolean;
+  eloChange?: number | null;
 }
 
 export interface RunDetail extends RecentRun {
