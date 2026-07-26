@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, FormEvent } from "react";
+import { useEffect, useState, useTransition, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import PlayerLoadingSkeleton from "./PlayerLoadingSkeleton";
 
 export default function SearchBar({
   size = "large",
@@ -13,7 +14,12 @@ export default function SearchBar({
 }) {
   const [value, setValue] = useState(initialValue);
   const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
   const router = useRouter();
+
+  useEffect(() => {
+    setValue(initialValue);
+  }, [initialValue]);
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -23,10 +29,20 @@ export default function SearchBar({
       return;
     }
     setError(null);
-    router.push(`/player/${encodeURIComponent(trimmed)}`);
+    startTransition(() => {
+      router.push(`/player/${encodeURIComponent(trimmed)}`);
+    });
   }
 
   const isLarge = size === "large";
+
+  if (isPending) {
+    return (
+      <div className="fixed inset-0 z-50 overflow-y-auto" aria-busy="true" aria-live="polite">
+        <PlayerLoadingSkeleton username={value.trim()} />
+      </div>
+    );
+  }
 
   return (
     <div className="w-full">
@@ -38,7 +54,6 @@ export default function SearchBar({
           >
             ← MCSRSTATS
           </Link>
-          
         </div>
       )}
 
