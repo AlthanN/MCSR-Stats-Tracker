@@ -55,7 +55,7 @@ aggregating across recent ranked runs:
 ```python
 class FullProfile(BaseModel):
     player: PlayerData
-    checkpoints: dict[str, CheckpointStat]   # keys: firstStructure, netherEnter, blindTravel, endEnter, finish
+    checkpoints: dict[str, CheckpointStat]   # keys: netherEnter, bastion, fortress, blindTravel, strongholdEnter, finish
     splits: list[SplitStat]
     seedTypes: list[SeedTypePerformance]
     recentRuns: list[RecentRun]

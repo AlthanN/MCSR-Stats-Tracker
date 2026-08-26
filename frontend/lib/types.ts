@@ -38,25 +38,37 @@ export interface PlayerData {
 }
 
 export type CheckpointKey =
-  | "firstStructure"
   | "netherEnter"
+  | "bastion"
+  | "fortress"
   | "blindTravel"
-  | "endEnter"
+  | "strongholdEnter"
   | "finish";
 
 export const CHECKPOINT_ORDER: CheckpointKey[] = [
-  "firstStructure",
   "netherEnter",
+  "bastion",
+  "fortress",
   "blindTravel",
-  "endEnter",
+  "strongholdEnter",
   "finish",
 ];
 
 export const CHECKPOINT_LABELS: Record<CheckpointKey, string> = {
-  firstStructure: "First Structure",
   netherEnter: "Nether Enter",
+  bastion: "Bastion",
+  fortress: "Fortress",
   blindTravel: "Blind Travel",
-  endEnter: "End Enter",
+  strongholdEnter: "Stronghold Enter",
+  finish: "Finish",
+};
+
+export const CHECKPOINT_SHORT_LABELS: Record<CheckpointKey, string> = {
+  netherEnter: "Nether",
+  bastion: "Bastion",
+  fortress: "Fortress",
+  blindTravel: "Blind",
+  strongholdEnter: "Stronghold",
   finish: "Finish",
 };
 

@@ -11,6 +11,7 @@ import {
 import {
   CHECKPOINT_ORDER,
   CHECKPOINT_LABELS,
+  CHECKPOINT_SHORT_LABELS,
   type CheckpointStats,
 } from "@/lib/types";
 import { formatTime, formatConsistency } from "@/lib/format";
@@ -21,7 +22,7 @@ export default function CheckpointSection({
   checkpoints: CheckpointStats;
 }) {
   const chartData = CHECKPOINT_ORDER.map((key) => ({
-    name: CHECKPOINT_LABELS[key].split(" ")[0],
+    name: CHECKPOINT_SHORT_LABELS[key],
     fullName: CHECKPOINT_LABELS[key],
     avgMs: checkpoints[key]?.average ?? 0,
     bestMs: checkpoints[key]?.best ?? 0,
@@ -34,7 +35,7 @@ export default function CheckpointSection({
       <div className="relative card px-6 py-8 overflow-x-auto">
         
 
-        <div className="relative flex justify-between min-w-[640px] gap-2">
+        <div className="relative flex justify-between min-w-[720px] gap-1">
           {CHECKPOINT_ORDER.map((key) => {
             const stat = checkpoints[key];
             const consistencyValue = stat?.consistency ?? null;
@@ -44,9 +45,9 @@ export default function CheckpointSection({
             return (
               <div
                 key={key}
-                className="flex flex-col items-center text-center w-full"
+                className="flex flex-col items-center text-center w-full min-w-0"
               >
-                <div className="text-[10px] tracking-widest text-ink-muted mb-3 h-8 flex items-end">
+                <div className="text-[10px] tracking-wide text-ink-muted mb-3 min-h-[2.5rem] flex items-end leading-tight px-0.5">
                   {CHECKPOINT_LABELS[key]}
                 </div>
 

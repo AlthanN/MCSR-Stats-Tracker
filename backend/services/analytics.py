@@ -7,26 +7,29 @@ from services.mcsr_client import DEFAULT_MATCH_COUNT, fetch_match_data, fetch_sp
 from services.parsers import parse_match_detail
 
 CHECKPOINT_KEYS = [
-    "firstStructure",
     "netherEnter",
+    "bastion",
+    "fortress",
     "blindTravel",
-    "endEnter",
+    "strongholdEnter",
     "finish",
 ]
 
 CHECKPOINT_EVENT_TYPES: dict[str, set[str]] = {
-    "firstStructure": {"nether.find_bastion", "nether.find_fortress"},
     "netherEnter": {"story.enter_the_nether"},
+    "bastion": {"nether.find_bastion"},
+    "fortress": {"nether.find_fortress"},
     "blindTravel": {"projectelo.timeline.blind_travel"},
-    "endEnter": {"story.enter_the_end"},
+    "strongholdEnter": {"story.follow_ender_eye"},
     "finish": {"projectelo.timeline.dragon_death"},
 }
 
 CHECKPOINT_LABELS: dict[str, str] = {
-    "firstStructure": "First Structure",
     "netherEnter": "Nether Enter",
+    "bastion": "First Structure (Bastion)",
+    "fortress": "Second Structure (Fortress)",
     "blindTravel": "Blind Travel",
-    "endEnter": "End Enter",
+    "strongholdEnter": "Stronghold Enter",
     "finish": "Finish",
 }
 
