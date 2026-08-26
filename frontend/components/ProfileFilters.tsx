@@ -126,11 +126,11 @@ export default function ProfileFilters({
 
       <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-ink-faint">
         <span>
-          Analytics: Season {meta.selectedSeason}
+          Analytics: Season {meta.selectedSeason} ·
           {isCurrentSeason && (
-            <span className="text-green-dim"> · current</span>
+            <span className="text-green-dim"> current</span>
           )}
-          {" · "}last {meta.matchCount} ranked matches
+          {" · "} NOTE * PB reflects data collected in last {meta.matchCount} ranked matches 
         </span>
         {!isCurrentSeason && (
           <button
