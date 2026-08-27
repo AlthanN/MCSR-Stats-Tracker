@@ -3,7 +3,13 @@ import statistics
 from collections import defaultdict
 from datetime import datetime, timezone
 
-from services.mcsr_client import DEFAULT_MATCH_COUNT, fetch_match_data, fetch_specific_match_data
+from services.mcsr_client import (
+    DEFAULT_MATCH_COUNT,
+    MCSR_PAGE_SIZE,
+    fetch_match_data,
+    fetch_match_page,
+    fetch_specific_match_data,
+)
 from services.parsers import parse_match_detail
 
 CHECKPOINT_KEYS = [
@@ -552,6 +558,7 @@ def _empty_analytics() -> dict:
         "hasMatchData": False,
         "splitAverages": {},
         "checkpointAverages": {},
+        "parsedById": {},
     }
 
 
@@ -687,6 +694,7 @@ async def build_analytics(
             for k, v in checkpoint_values.items()
             if v
         },
+        "parsedById": parsed_by_id,
     }
 
 
@@ -741,6 +749,213 @@ def _compute_seed_performance(runs: list[ParsedRun]) -> list[dict]:
         )
 
     return results
+
+
+PB_TIME_SLOP_MS = 50
+
+
+def _times_match(left, right, slop: int = PB_TIME_SLOP_MS) -> bool:
+    if left is None or right is None:
+        return False
+    return abs(int(left) - int(right)) <= slop
+
+
+def _payload_from_pb_run(run: ParsedRun, *, from_analyzed_window: bool) -> dict:
+    checkpoints = {
+        key: (int(time_val) if time_val is not None else None)
+        for key, time_val in run.checkpoint_times.items()
+    }
+    splits = []
+    for event_type in SPLIT_ORDER:
+        time_val = run.split_times.get(event_type)
+        if time_val is None:
+            continue
+        splits.append(
+            {
+                "splitName": SPLIT_LABELS.get(event_type, event_type),
+                "timeMs": int(time_val),
+            }
+        )
+    return {
+        "id": run.match_id,
+        "date": _iso_date(run.date),
+        "finalTimeMs": int(run.finish_time) if run.finish_time is not None else None,
+        "opponent": run.opponent,
+        "seedType": run.seed_type,
+        "fromAnalyzedWindow": from_analyzed_window,
+        "checkpoints": checkpoints,
+        "splits": splits,
+    }
+
+
+def _pick_pb_match(
+    matches: list[dict], player_uuid: str, best_time_ms: int
+) -> tuple[dict | None, dict | None]:
+    """Return (exact PB win, first own-win) from a fastest-sorted list."""
+    first_own_win = None
+    for match in matches:
+        if _is_decay_match(match):
+            continue
+        result = match.get("result") or {}
+        if result.get("uuid") != player_uuid:
+            continue
+        time_ms = result.get("time")
+        if time_ms is None:
+            continue
+        if first_own_win is None:
+            first_own_win = match
+        if _times_match(time_ms, best_time_ms):
+            return match, first_own_win
+    return None, first_own_win
+
+
+async def _find_season_pb_match(
+    username: str,
+    player_uuid: str,
+    season: int,
+    best_time_ms: int,
+) -> dict | None:
+    """Fastest-sorted list pages until the season PB win is found (usually 1 page)."""
+    first_own_win = None
+    before: int | None = None
+    max_pages = 5
+
+    for _ in range(max_pages):
+        batch = await fetch_match_page(
+            username,
+            season=season,
+            match_type=2,
+            sort="fastest",
+            count=MCSR_PAGE_SIZE,
+            before=before,
+            exclude_decay=True,
+        )
+        if not batch:
+            break
+
+        exact, page_first_win = _pick_pb_match(batch, player_uuid, best_time_ms)
+        if first_own_win is None:
+            first_own_win = page_first_win
+        if exact is not None:
+            return exact
+
+        if len(batch) < MCSR_PAGE_SIZE:
+            break
+        before = batch[-1].get("id")
+        if before is None:
+            break
+
+    return first_own_win
+
+
+async def build_season_pb_run(
+    username: str,
+    player_uuid: str,
+    season: int,
+    best_time_ms: int | None,
+    parsed_by_id: dict[str, ParsedRun] | None = None,
+) -> dict | None:
+    """Splits from the season PB run, reusing analyzed matches when possible."""
+    if best_time_ms is None:
+        return None
+
+    parsed_by_id = parsed_by_id or {}
+    for run in parsed_by_id.values():
+        if not run.won:
+            continue
+        if _times_match(run.finish_time, best_time_ms) or _times_match(
+            run.match_duration, best_time_ms
+        ):
+            return _payload_from_pb_run(run, from_analyzed_window=True)
+
+    match = await _find_season_pb_match(
+        username, player_uuid, season, int(best_time_ms)
+    )
+    if match is None or match.get("id") is None:
+        return None
+
+    match_id = str(match["id"])
+    existing = parsed_by_id.get(match_id)
+    if existing is not None:
+        return _payload_from_pb_run(existing, from_analyzed_window=True)
+
+    run = await _fetch_and_parse_run(
+        match_id,
+        player_uuid,
+        match.get("seedType") or (match.get("seed") or {}).get("overworld"),
+        match.get("forfeited"),
+    )
+    if run is None:
+        return None
+    return _payload_from_pb_run(run, from_analyzed_window=False)
+
+
+def apply_season_pb_bests(
+    checkpoints: dict,
+    splits: list[dict],
+    season_pb: dict | None,
+    official_best_time: int | None,
+) -> None:
+    """Replace sample 'best' with season PB run times. Finish always uses official PB."""
+    if season_pb:
+        for key, time_val in (season_pb.get("checkpoints") or {}).items():
+            if key in checkpoints:
+                checkpoints[key]["best"] = time_val
+
+        pb_by_name = {
+            entry["splitName"]: entry.get("timeMs")
+            for entry in season_pb.get("splits") or []
+        }
+        seen = {split["splitName"] for split in splits}
+        for split in splits:
+            split["best"] = pb_by_name.get(split["splitName"])
+
+        for entry in season_pb.get("splits") or []:
+            if entry["splitName"] in seen:
+                continue
+            splits.append(
+                {
+                    "splitName": entry["splitName"],
+                    "average": None,
+                    "best": entry.get("timeMs"),
+                    "worst": None,
+                    "consistency": None,
+                }
+            )
+
+        label_order = {
+            SPLIT_LABELS[event_type]: i for i, event_type in enumerate(SPLIT_ORDER)
+        }
+        splits.sort(
+            key=lambda s: label_order.get(s["splitName"], len(SPLIT_ORDER))
+        )
+
+    if official_best_time is not None:
+        if "finish" in checkpoints:
+            checkpoints["finish"]["best"] = official_best_time
+        dragon_label = SPLIT_LABELS.get("projectelo.timeline.dragon_death")
+        for split in splits:
+            if split.get("splitName") == dragon_label:
+                split["best"] = official_best_time
+                break
+        else:
+            if dragon_label:
+                splits.append(
+                    {
+                        "splitName": dragon_label,
+                        "average": None,
+                        "best": official_best_time,
+                        "worst": None,
+                        "consistency": None,
+                    }
+                )
+                label_order = {
+                    SPLIT_LABELS[event_type]: i
+                    for i, event_type in enumerate(SPLIT_ORDER)
+                }
+                splits.sort(
+                    key=lambda s: label_order.get(s["splitName"], len(SPLIT_ORDER))
+                )
 
 
 async def build_run_detail(

@@ -16,7 +16,12 @@ from services.mcsr_client import (
     init_client,
 )
 from services.parsers import parse_player_data, parse_match_list, parse_match_detail
-from services.analytics import build_analytics, build_run_detail
+from services.analytics import (
+    apply_season_pb_bests,
+    build_analytics,
+    build_run_detail,
+    build_season_pb_run,
+)
 from services.season import get_current_season, resolve_season
 
 
@@ -96,6 +101,19 @@ async def get_player_profile(
     losses = season_stats.get("losses") or 0
     season_stats["draws"] = max(0, played - wins - losses) if played else None
 
+    season_pb = await build_season_pb_run(
+        username,
+        player_uuid,
+        selected_season,
+        season_info.get("bestTime"),
+        parsed_by_id=analytics.get("parsedById") or {},
+    )
+
+    checkpoints = analytics["checkpoints"]
+    splits = analytics["splits"]
+    official_best = season_info.get("bestTime")
+    apply_season_pb_bests(checkpoints, splits, season_pb, official_best)
+
     return {
         "player": player_data,
         "meta": {
@@ -105,10 +123,11 @@ async def get_player_profile(
         },
         "seasonStats": season_stats,
         "hasMatchData": analytics["hasMatchData"],
-        "checkpoints": analytics["checkpoints"],
-        "splits": analytics["splits"],
+        "checkpoints": checkpoints,
+        "splits": splits,
         "seedTypes": analytics["seedTypes"],
         "recentRuns": analytics["recentRuns"],
+        "checkpointBestFromPb": official_best is not None or season_pb is not None,
     }
 
 

@@ -4,8 +4,12 @@ import { SectionHeading } from "./CheckpointSection";
 
 export default function SplitBreakdownTable({
   splits,
+  matchCount,
+  bestFromSeasonPb,
 }: {
   splits: SplitStat[];
+  matchCount?: number;
+  bestFromSeasonPb?: boolean;
 }) {
   return (
     <section>
@@ -13,6 +17,22 @@ export default function SplitBreakdownTable({
         title="Full Split Breakdown"
         sub={`${splits.length} splits tracked`}
       />
+      <p className="text-[11px] text-ink-faint leading-relaxed mb-3">
+        {bestFromSeasonPb ? (
+          <>
+            Best is from this season&apos;s PB run. Average, worst, and
+            consistency use the last{" "}
+            <span className="text-ink-muted">{matchCount}</span> ranked
+            matches fetched — not the full season.
+          </>
+        ) : (
+          <>
+            Average, worst, and consistency are based on the last{" "}
+            <span className="text-ink-muted">{matchCount}</span> ranked matches
+            fetched for this season.
+          </>
+        )}
+      </p>
       <div className="card overflow-x-auto">
         <table className="w-full text-sm min-w-[560px]">
           <thead>

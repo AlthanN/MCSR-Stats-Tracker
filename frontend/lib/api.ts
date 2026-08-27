@@ -64,6 +64,7 @@ function normalizeProfile(raw: FullProfile): FullProfile {
     checkpoints: raw.checkpoints ?? ({} as FullProfile["checkpoints"]),
     splits: raw.splits ?? [],
     seedTypes: raw.seedTypes ?? [],
+    checkpointBestFromPb: raw.checkpointBestFromPb ?? false,
   };
 }
 

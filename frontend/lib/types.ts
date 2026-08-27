@@ -181,6 +181,7 @@ export interface FullProfile {
   splits: SplitStat[];
   seedTypes: SeedTypePerformance[];
   recentRuns: RecentRun[];
+  checkpointBestFromPb?: boolean;
 }
 
 export interface MatchSummary {

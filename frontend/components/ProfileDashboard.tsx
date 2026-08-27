@@ -74,8 +74,13 @@ export default function ProfileDashboard({
             <CheckpointSection
               checkpoints={profile.checkpoints}
               matchCount={meta.matchCount}
+              bestFromSeasonPb={profile.checkpointBestFromPb ?? false}
             />
-            <SplitBreakdownTable splits={profile.splits} />
+            <SplitBreakdownTable
+              splits={profile.splits}
+              matchCount={meta.matchCount}
+              bestFromSeasonPb={profile.checkpointBestFromPb ?? false}
+            />
             <SeedTypePerformance seedTypes={profile.seedTypes} />
         <RecentRunsList
           runs={profile.recentRuns}

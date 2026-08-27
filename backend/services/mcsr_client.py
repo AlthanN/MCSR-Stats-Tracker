@@ -65,8 +65,10 @@ async def fetch_match_data(
     count: int = DEFAULT_MATCH_COUNT,
     season: int = 11,
     match_type: int = 2,
+    sort: str = "newest",
+    exclude_decay: bool = False,
 ) -> dict | None:
-    """Fetch up to `count` recent matches, paginating in batches of 100."""
+    """Fetch up to `count` matches, paginating in batches of 100."""
     client = _ensure_client()
     target = min(max(count, 1), MAX_MATCH_COUNT)
     all_matches: list[dict] = []
@@ -78,7 +80,10 @@ async def fetch_match_data(
             "count": batch_size,
             "season": season,
             "type": match_type,
+            "sort": sort,
         }
+        if exclude_decay:
+            params["excludedecay"] = "true"
         if before is not None:
             params["before"] = before
 
@@ -102,6 +107,38 @@ async def fetch_match_data(
         before = batch[-1]["id"]
 
     return {"data": all_matches[:target]}
+
+
+async def fetch_match_page(
+    username: str,
+    *,
+    season: int,
+    match_type: int = 2,
+    sort: str = "newest",
+    count: int = MCSR_PAGE_SIZE,
+    before: int | None = None,
+    exclude_decay: bool = False,
+) -> list[dict]:
+    """Fetch a single page of matches. Empty list on error."""
+    client = _ensure_client()
+    params: dict = {
+        "count": min(max(count, 1), MCSR_PAGE_SIZE),
+        "season": season,
+        "type": match_type,
+        "sort": sort,
+    }
+    if exclude_decay:
+        params["excludedecay"] = "true"
+    if before is not None:
+        params["before"] = before
+
+    try:
+        resp = await client.get(f"/users/{username}/matches", params=params)
+        resp.raise_for_status()
+        return resp.json().get("data") or []
+    except httpx.HTTPError as e:
+        print(f"error fetching match page for {username}: {e}")
+        return []
 
 
 async def fetch_specific_match_data(match_id: str) -> dict | None:

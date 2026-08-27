@@ -90,3 +90,4 @@ class FullProfile(BaseModel):
     splits: list[SplitStat]
     seedTypes: list[SeedTypePerformance]
     recentRuns: list[RecentRun]
+    checkpointBestFromPb: bool = False
