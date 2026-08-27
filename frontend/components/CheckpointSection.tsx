@@ -18,8 +18,10 @@ import { formatTime, formatConsistency } from "@/lib/format";
 
 export default function CheckpointSection({
   checkpoints,
+  matchCount,
 }: {
   checkpoints: CheckpointStats;
+  matchCount: number;
 }) {
   const chartData = CHECKPOINT_ORDER.map((key) => ({
     name: CHECKPOINT_SHORT_LABELS[key],
@@ -31,6 +33,12 @@ export default function CheckpointSection({
   return (
     <section>
       <SectionHeading title="Key Checkpoints" sub="run progression, in order" />
+      <p className="text-[11px] text-ink-faint leading-relaxed mb-3">
+        Averages, bests, and consistency are based on the last{" "}
+        <span className="text-ink-muted">{matchCount}</span> ranked matches
+        fetched for this season — not the full season. A checkpoint best here
+        can miss a faster time from an older run (including the season PB).
+      </p>
 
       <div className="relative card px-6 py-8 overflow-x-auto">
         

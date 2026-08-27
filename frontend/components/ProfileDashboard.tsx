@@ -71,7 +71,10 @@ export default function ProfileDashboard({
 
         {hasData && (
           <>
-            <CheckpointSection checkpoints={profile.checkpoints} />
+            <CheckpointSection
+              checkpoints={profile.checkpoints}
+              matchCount={meta.matchCount}
+            />
             <SplitBreakdownTable splits={profile.splits} />
             <SeedTypePerformance seedTypes={profile.seedTypes} />
         <RecentRunsList

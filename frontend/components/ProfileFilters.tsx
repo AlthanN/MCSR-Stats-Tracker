@@ -130,7 +130,7 @@ export default function ProfileFilters({
           {isCurrentSeason && (
             <span className="text-green-dim"> current</span>
           )}
-          {" · "} NOTE * PB reflects data collected in last {meta.matchCount} ranked matches 
+          {" · "} NOTE * Match range reflects data for key checkpoints in {meta.matchCount} ranked matches 
         </span>
         {!isCurrentSeason && (
           <button
