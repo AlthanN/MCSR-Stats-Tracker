@@ -1,5 +1,8 @@
-import type { AllTimeStats, ProfileMeta, SeasonStatsSummary } from "@/lib/types";
-import { EMPTY_SEASON_STATS } from "@/lib/types";
+import type {
+  AllTimeStats,
+  ProfileMeta,
+  SeasonMatchesInfo,
+} from "@/lib/types";
 import {
   formatTime,
   formatPlayTime,
@@ -9,57 +12,67 @@ import {
 } from "@/lib/format";
 import { SectionHeading } from "./CheckpointSection";
 
-function buildSeasonStatsRows(seasonStats: SeasonStatsSummary) {
+function hasSeasonProfileStats(info: SeasonMatchesInfo): boolean {
+  return (
+    (info.playedMatches ?? 0) > 0 ||
+    (info.wins ?? 0) > 0 ||
+    (info.losses ?? 0) > 0 ||
+    info.bestTime != null
+  );
+}
+
+function buildSeasonStatsRows(seasonProfile: SeasonMatchesInfo) {
   return [
-    { label: "PB", value: formatTime(seasonStats.bestTime), highlight: true },
+    {
+      label: "PB",
+      value: formatTime(seasonProfile.bestTime),
+      highlight: true,
+    },
     {
       label: "Avg finish",
-      value: formatTime(seasonStats.averageCompletionTime),
+      value: formatTime(seasonProfile.averageCompletionTime),
     },
-    { label: "Wins", value: String(seasonStats.wins ?? "—") },
-    { label: "Losses", value: String(seasonStats.losses ?? "—") },
+    { label: "Wins", value: String(seasonProfile.wins ?? "—") },
+    { label: "Losses", value: String(seasonProfile.losses ?? "—") },
     {
       label: "Draws",
-      value:
-        seasonStats.draws != null
-          ? String(seasonStats.draws)
-          : computeDraws(
-              seasonStats.playedMatches,
-              seasonStats.wins,
-              seasonStats.losses
-            ),
+      value: computeDraws(
+        seasonProfile.playedMatches,
+        seasonProfile.wins,
+        seasonProfile.losses
+      ),
     },
     {
       label: "Win rate",
       value: computeWinRate(
-        seasonStats.wins,
-        seasonStats.losses,
-        seasonStats.forfeits
+        seasonProfile.wins,
+        seasonProfile.losses,
+        seasonProfile.forfeits
       ),
     },
     {
       label: "Matches",
-      value: String(seasonStats.playedMatches ?? "—"),
+      value: String(seasonProfile.playedMatches ?? "—"),
     },
     {
       label: "Completions",
-      value: String(seasonStats.completions ?? "—"),
+      value: String(seasonProfile.completions ?? "—"),
     },
     {
       label: "Completion rate",
       value: computeCompletionRate(
-        seasonStats.completions ?? 0,
-        seasonStats.playedMatches ?? 0
+        seasonProfile.completions ?? 0,
+        seasonProfile.playedMatches ?? 0
       ),
     },
-    { label: "Forfeits", value: String(seasonStats.forfeits ?? "—") },
+    { label: "Forfeits", value: String(seasonProfile.forfeits ?? "—") },
     {
       label: "Best streak",
-      value: String(seasonStats.highestWinStreak ?? "—"),
+      value: String(seasonProfile.highestWinStreak ?? "—"),
     },
     {
       label: "Current streak",
-      value: String(seasonStats.currentWinStreak ?? "—"),
+      value: String(seasonProfile.currentWinStreak ?? "—"),
     },
   ];
 }
@@ -121,29 +134,22 @@ function buildAllTimeStatsRows(allTime: AllTimeStats) {
 }
 
 export default function StatsOverview({
-  seasonStats,
+  seasonProfile,
   allTime,
   meta,
-  hasMatchData,
 }: {
-  seasonStats?: SeasonStatsSummary;
+  seasonProfile: SeasonMatchesInfo;
   allTime: AllTimeStats;
   meta: ProfileMeta;
-  hasMatchData: boolean;
 }) {
-  const stats = seasonStats ?? EMPTY_SEASON_STATS;
   const isCurrentSeason = meta.selectedSeason === meta.currentSeason;
-  const showSeasonEmpty = !hasMatchData;
+  const showSeasonEmpty = !hasSeasonProfileStats(seasonProfile);
 
   return (
     <section>
       <SectionHeading
         title="Player Statistics"
-        sub={
-          hasMatchData
-            ? `season ${meta.selectedSeason} (last ${meta.matchCount} matches) vs all-time`
-            : `no ranked data for season ${meta.selectedSeason}`
-        }
+        sub={`season ${meta.selectedSeason} vs all-time`}
       />
 
       <div className="grid sm:grid-cols-2 gap-4">
@@ -153,7 +159,7 @@ export default function StatsOverview({
           accent="green"
           empty={showSeasonEmpty}
           emptyMessage={`No season information found for this user in Season ${meta.selectedSeason}.`}
-          stats={showSeasonEmpty ? [] : buildSeasonStatsRows(stats)}
+          stats={showSeasonEmpty ? [] : buildSeasonStatsRows(seasonProfile)}
         />
 
         <StatsCard

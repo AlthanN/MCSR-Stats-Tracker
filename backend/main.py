@@ -74,6 +74,28 @@ async def get_player_profile(
         season=selected_season,
     )
 
+    # Season totals come from the MCSR season profile, not the sampled match
+    # window. Analytics only fetch the last N matches (default 100).
+    season_stats = analytics["seasonStats"]
+    season_info = player_data.get("seasonMatchesInfo") or {}
+    for key in (
+        "bestTime",
+        "averageCompletionTime",
+        "wins",
+        "losses",
+        "playedMatches",
+        "completions",
+        "forfeits",
+        "highestWinStreak",
+        "currentWinStreak",
+    ):
+        season_stats[key] = season_info.get(key)
+
+    played = season_stats.get("playedMatches") or 0
+    wins = season_stats.get("wins") or 0
+    losses = season_stats.get("losses") or 0
+    season_stats["draws"] = max(0, played - wins - losses) if played else None
+
     return {
         "player": player_data,
         "meta": {
@@ -81,7 +103,7 @@ async def get_player_profile(
             "selectedSeason": selected_season,
             "matchCount": match_count,
         },
-        "seasonStats": analytics["seasonStats"],
+        "seasonStats": season_stats,
         "hasMatchData": analytics["hasMatchData"],
         "checkpoints": analytics["checkpoints"],
         "splits": analytics["splits"],

@@ -64,10 +64,9 @@ export default function ProfileDashboard({
         {!hasData && <NoSeasonDataBanner meta={meta} />}
 
         <StatsOverview
-          seasonStats={profile.seasonStats}
+          seasonProfile={profile.player.seasonMatchesInfo}
           allTime={profile.player.allTime}
           meta={meta}
-          hasMatchData={hasData}
         />
 
         {hasData && (

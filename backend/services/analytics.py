@@ -523,18 +523,14 @@ def _compute_season_stats(
     decays = sum(1 for m in matches_data if _is_decay_match(m))
     draws = played - wins - losses - decays
     completions = sum(1 for r in runs if r.result == "completed")
-    finish_times = [
-        r.finish_time for r in runs if r.result == "completed" and r.finish_time
-    ]
     highest_streak, current_streak = _compute_win_streaks_from_matches(
         matches_data, player_uuid, forfeit_by_id
     )
 
     return {
-        "bestTime": min(finish_times) if finish_times else None,
-        "averageCompletionTime": (
-            statistics.mean(finish_times) if finish_times else None
-        ),
+        # Filled from seasonMatchesInfo in main.py — not from this sample.
+        "bestTime": None,
+        "averageCompletionTime": None,
         "wins": wins,
         "losses": losses,
         "draws": draws,

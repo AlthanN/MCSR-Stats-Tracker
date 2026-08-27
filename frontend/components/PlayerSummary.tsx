@@ -1,5 +1,4 @@
 import type { FullProfile } from "@/lib/types";
-import { EMPTY_SEASON_STATS } from "@/lib/types";
 import {
   formatTime,
   formatElo,
@@ -12,20 +11,15 @@ import {
 } from "@/lib/format";
 
 export default function PlayerSummary({ profile }: { profile: FullProfile }) {
-  const { player, recentRuns, meta, seasonStats: rawSeasonStats, hasMatchData } = profile;
-  const seasonStats = rawSeasonStats ?? EMPTY_SEASON_STATS;
+  const { player, recentRuns, meta, hasMatchData } = profile;
   const seasonProfile = player.seasonMatchesInfo;
   const completedRuns = recentRuns.filter((r) => r.result === "completed").length;
   const analyzedCompletion = computeCompletionRate(
     completedRuns,
     recentRuns.length
   );
-  const seasonPb = hasMatchData
-    ? seasonStats.bestTime
-    : seasonProfile.bestTime;
-  const seasonAvg = hasMatchData
-    ? seasonStats.averageCompletionTime
-    : seasonProfile.averageCompletionTime;
+  const seasonPb = seasonProfile.bestTime;
+  const seasonAvg = seasonProfile.averageCompletionTime;
   const allTimePb = player.allTime.bestTime;
   const seasonElo = player.seasonElo ?? player.currentElo;
   const rank = getRankTier(seasonElo);
