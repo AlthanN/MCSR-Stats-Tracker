@@ -32,7 +32,14 @@ async def lifespan(app: FastAPI):
     await close_client()
 
 
-app = FastAPI(title="MCSR Stats API", lifespan=lifespan)
+app = FastAPI(
+    title="MCSR Stats API",
+    lifespan=lifespan,
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
+    openapi_url="/api/openapi.json",
+    swagger_ui_oauth2_redirect_url="/api/docs/oauth2-redirect",
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -42,13 +49,13 @@ app.add_middleware(
 )
 
 
-@app.get("/meta/current-season")
+@app.get("/api/meta/current-season")
 async def current_season():
     season = await get_current_season()
     return {"currentSeason": season}
 
 
-@app.get("/players/{username}", response_model=FullProfile)
+@app.get("/api/players/{username}", response_model=FullProfile)
 async def get_player_profile(
     username: str,
     match_count: int = Query(DEFAULT_MATCH_COUNT, ge=1, le=MAX_MATCH_COUNT, alias="count"),
@@ -131,7 +138,7 @@ async def get_player_profile(
     }
 
 
-@app.get("/players/{username}/runs/{run_id}", response_model=RunDetail)
+@app.get("/api/players/{username}/runs/{run_id}", response_model=RunDetail)
 async def get_run_detail(
     username: str,
     run_id: str,
@@ -171,7 +178,7 @@ async def get_run_detail(
     return detail
 
 
-@app.get("/players/{username}/summary", response_model=PlayerData)
+@app.get("/api/players/{username}/summary", response_model=PlayerData)
 async def get_player_summary(username: str):
     """Lightweight player summary without match analytics."""
     raw = await fetch_user_data(username)
@@ -184,7 +191,7 @@ async def get_player_summary(username: str):
     return parse_player_data(raw)
 
 
-@app.get("/players/{username}/matches", response_model=MatchListResponse)
+@app.get("/api/players/{username}/matches", response_model=MatchListResponse)
 async def get_player_matches(
     username: str,
     count: int = Query(DEFAULT_MATCH_COUNT, ge=1, le=MAX_MATCH_COUNT),
@@ -204,7 +211,7 @@ async def get_player_matches(
     return parse_match_list(raw)
 
 
-@app.get("/matches/{match_id}", response_model=MatchDetail)
+@app.get("/api/matches/{match_id}", response_model=MatchDetail)
 async def get_match(match_id: str):
     raw = await fetch_specific_match_data(match_id)
     if raw is None:

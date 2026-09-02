@@ -9,8 +9,18 @@ import type {
 } from "./types";
 import { EMPTY_SEASON_STATS } from "./types";
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+function getApiBaseUrl(): string {
+  // Vercel injects this private service binding for server-side requests.
+  // Browser requests stay on the current origin and are routed by Vercel (or
+  // the development rewrite in next.config.js) to the FastAPI service.
+  if (typeof window === "undefined") {
+    return (process.env.BACKEND_URL ?? "http://localhost:8000").replace(
+      /\/$/,
+      ""
+    );
+  }
+  return "";
+}
 
 export class ApiError extends Error {
   status: number;
@@ -22,7 +32,7 @@ export class ApiError extends Error {
 }
 
 async function getJson<T>(path: string, revalidate = 30): Promise<T> {
-  const res = await fetch(`${API_BASE_URL}${path}`, {
+  const res = await fetch(`${getApiBaseUrl()}${path}`, {
     next: { revalidate },
   });
 
@@ -74,19 +84,19 @@ export function fetchPlayerProfile(
   query: ProfileQuery = {}
 ): Promise<FullProfile> {
   return getJson<FullProfile>(
-    `/players/${encodeURIComponent(username)}${buildQuery(query)}`
+    `/api/players/${encodeURIComponent(username)}${buildQuery(query)}`
   ).then(normalizeProfile);
 }
 
 /** Active MCSR ranked season. */
 export function fetchCurrentSeason(): Promise<{ currentSeason: number }> {
-  return getJson<{ currentSeason: number }>("/meta/current-season", 300);
+  return getJson<{ currentSeason: number }>("/api/meta/current-season", 300);
 }
 
 /** Lightweight player summary without match analytics. */
 export function fetchPlayerSummary(username: string): Promise<PlayerData> {
   return getJson<PlayerData>(
-    `/players/${encodeURIComponent(username)}/summary`
+    `/api/players/${encodeURIComponent(username)}/summary`
   );
 }
 
@@ -96,13 +106,13 @@ export function fetchPlayerMatches(
   query: ProfileQuery = {}
 ): Promise<MatchListResponse> {
   return getJson<MatchListResponse>(
-    `/players/${encodeURIComponent(username)}/matches${buildQuery(query)}`
+    `/api/players/${encodeURIComponent(username)}/matches${buildQuery(query)}`
   );
 }
 
 /** Single match detail with filtered timeline. */
 export function fetchMatchDetail(matchId: string): Promise<MatchDetail> {
-  return getJson<MatchDetail>(`/matches/${encodeURIComponent(matchId)}`);
+  return getJson<MatchDetail>(`/api/matches/${encodeURIComponent(matchId)}`);
 }
 
 /** Expanded split timeline for a single run. */
@@ -112,7 +122,7 @@ export function fetchRunDetail(
   query: ProfileQuery = {}
 ): Promise<RunDetail> {
   return getJson<RunDetail>(
-    `/players/${encodeURIComponent(username)}/runs/${encodeURIComponent(runId)}${buildQuery(query)}`,
+    `/api/players/${encodeURIComponent(username)}/runs/${encodeURIComponent(runId)}${buildQuery(query)}`,
     0
   );
 }

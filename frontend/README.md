@@ -6,12 +6,17 @@ Next.js (App Router) + Tailwind + Recharts frontend for the MCSR stats dashboard
 
 ```bash
 npm install
-cp .env.local.example .env.local   # point at your FastAPI backend
 npm run dev
 ```
 
-Visit `http://localhost:3000`. Make sure your FastAPI backend (with CORS enabled
-for `http://localhost:3000`) is running on the URL in `.env.local`.
+Visit `http://localhost:3000` with FastAPI running on port 8000. No `.env.local`
+file is required: Next.js proxies browser requests under `/api/*` to FastAPI,
+while server-rendered requests use `http://localhost:8000` directly.
+
+On Vercel, the root `vercel.json` supplies a private `BACKEND_URL` service
+binding for server-rendered requests. Browser requests remain on the current
+deployment's `/api/*` routes, so production and previews do not need a public
+API URL environment variable.
 
 ## File map
 
@@ -39,18 +44,14 @@ lib/
   format.ts                time/delta/consistency formatting helpers
 ```
 
-## ⚠️ Backend endpoints this frontend expects
+## Backend endpoints
 
-Your current FastAPI backend only exposes `/players/{username}` returning the
-flat `PlayerData` shape from your original parsing function. This frontend
-needs a richer payload to drive the checkpoints/splits/seed-type/recent-runs
-sections. You'll need to extend the backend with:
+The backend's public interface is namespaced under `/api`.
 
-### 1. `GET /players/{username}` → `FullProfile`
+### 1. `GET /api/players/{username}` → `FullProfile`
 
-Wrap your existing `PlayerData` plus four new pieces, computed from the MCSR
-`matches` endpoint (your `getUserMatch()`/`fetch_user_matches` function) by
-aggregating across recent ranked runs:
+The profile contains player data plus analytics aggregated across recent
+ranked runs:
 
 ```python
 class FullProfile(BaseModel):
@@ -67,18 +68,11 @@ data; `consistency` is the coefficient of variation
 `statistics.stdev()` from the standard library gets you most of the way
 there.
 
-### 2. `GET /players/{username}/runs/{run_id}` → `RunDetail`
+### 2. `GET /api/players/{username}/runs/{run_id}` → `RunDetail`
 
 Single match's full split list, each with `deltaVsAverageMs` = that run's
 split time minus the player's average for that split (negative = faster).
 
-### 3. `GET /players/trending` → `list[TrendingPlayer]` (optional)
-
-Homepage degrades gracefully without this — it's wrapped in a try/catch — so
-it's fine to ship without it and add later (e.g. backed by an in-memory list
-of the last N usernames your backend has served).
-
-I can help write the backend aggregation logic (consistency calculations,
-checkpoint extraction from match timelines) next if useful — just share the
-shape of the data MCSR's `/users/{username}/matches` actually returns and
-I'll wire up the parsing.
+The API also exposes `/api/meta/current-season`, player summaries and match
+lists, and `/api/matches/{match_id}`. Swagger documentation is available at
+`/api/docs`.

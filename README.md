@@ -20,13 +20,13 @@ There is no database. Every request pulls fresh data from MCSR Ranked, parses ma
 ## How data flows
 
 1. **User searches** a username on the homepage. The frontend navigates to `/player/{username}`.
-2. **Server-side fetch** — the player page calls `GET /players/{username}` on the backend before rendering.
+2. **Server-side fetch** — the player page calls `GET /api/players/{username}` on the backend before rendering.
 3. **Backend fetches player profile** from `GET /users/{username}` on the MCSR API (ELO, wins/losses, season stats).
 4. **Backend fetches recent matches** — up to 100 ranked matches (configurable, max 500) from `GET /users/{username}/matches`, paginated in batches of 100.
 5. **Per-match detail fetch** — for each match, the backend calls `GET /matches/{id}` to retrieve the full timeline (nether enter, bastion find, dragon death, etc.). These run concurrently with a semaphore (max 10 at a time).
 6. **Analytics aggregation** — checkpoint times, split averages, seed-type impact, win/loss records, and recent-run summaries are computed from the parsed timelines.
 7. **Frontend renders** the profile dashboard: summary header, stats overview, checkpoint timeline, split table, seed chart, and clickable recent runs.
-8. **Run detail modal** — clicking a run triggers a client-side fetch to `GET /players/{username}/runs/{run_id}`, which returns a side-by-side split comparison against the opponent plus delta-vs-average highlighting.
+8. **Run detail modal** — clicking a run triggers a client-side fetch to `GET /api/players/{username}/runs/{run_id}`, which returns a side-by-side split comparison against the opponent plus delta-vs-average highlighting.
 
 ## Backend
 
@@ -65,13 +65,13 @@ For each checkpoint the backend computes average time, best time, and consistenc
 
 | Endpoint | Description |
 |---|---|
-| `GET /meta/current-season` | Active ranked season number |
-| `GET /players/{username}` | Full profile: player summary + analytics + recent runs |
-| `GET /players/{username}?season=N&count=M` | Same, scoped to season `N` with `M` matches analyzed |
-| `GET /players/{username}/summary` | Lightweight player data without match analytics |
-| `GET /players/{username}/matches` | Raw match list with bastion/seed counts |
-| `GET /players/{username}/runs/{run_id}` | Single-run split timeline with opponent comparison |
-| `GET /matches/{match_id}` | Single match detail with filtered timeline |
+| `GET /api/meta/current-season` | Active ranked season number |
+| `GET /api/players/{username}` | Full profile: player summary + analytics + recent runs |
+| `GET /api/players/{username}?season=N&count=M` | Same, scoped to season `N` with `M` matches analyzed |
+| `GET /api/players/{username}/summary` | Lightweight player data without match analytics |
+| `GET /api/players/{username}/matches` | Raw match list with bastion/seed counts |
+| `GET /api/players/{username}/runs/{run_id}` | Single-run split timeline with opponent comparison |
+| `GET /api/matches/{match_id}` | Single match detail with filtered timeline |
 
 Query parameters:
 
@@ -133,23 +133,33 @@ pip install -r requirements.txt
 uvicorn main:app --reload --port 8000
 ```
 
-The API will be available at `http://localhost:8000`. Interactive docs at `http://localhost:8000/docs`.
+The API will be available at `http://localhost:8000/api`. Interactive docs are at `http://localhost:8000/api/docs`.
 
 ### Frontend
 
 ```bash
 cd frontend
 npm install
-cp .env.local.example .env.local   # defaults to http://localhost:8000
 npm run dev
 ```
 
-Visit `http://localhost:3000`. The frontend expects the backend running with CORS enabled for `http://localhost:3000` (configured by default in `main.py`).
+Visit `http://localhost:3000`. During development, Next.js proxies `/api/*` to the backend at `http://localhost:8000`; no environment file is required.
+
+## Deploying to Vercel
+
+The root `vercel.json` deploys the Next.js frontend and FastAPI backend as two [Vercel Services](https://vercel.com/docs/services) in one project. Requests under `/api/*` go to FastAPI, while all other requests go to Next.js.
+
+1. Import this repository into Vercel with the repository root as the project root.
+2. In the project's Build and Deployment settings, select **Services** as the Framework Preset.
+3. Deploy. Do not add `NEXT_PUBLIC_API_BASE_URL` or `BACKEND_URL` manually. Vercel creates the private `BACKEND_URL` service binding automatically.
+
+To exercise the integrated routing locally with the Vercel CLI, run `vercel dev -L` from the repository root. The regular two-terminal `uvicorn` plus `npm run dev` workflow above remains supported.
 
 ## Project structure
 
 ```
 MCSR-Stats-Tracker/
+├── vercel.json                Vercel Services and routing configuration
 ├── backend/
 │   ├── main.py                 FastAPI entry point
 │   ├── requirements.txt
