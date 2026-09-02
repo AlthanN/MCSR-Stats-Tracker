@@ -15,7 +15,7 @@ The app is a two-service stack: a **FastAPI backend** that proxies and enriches 
 └─────────────────┘                   └─────────────────┘                   └──────────────────┘
 ```
 
-There is no database. Every request pulls fresh data from MCSR Ranked, parses match timelines on the fly, and returns aggregated analytics. The backend caches only the current ranked season number (1-hour TTL).
+There is no player-data database. Every uncached profile request pulls data from MCSR Ranked, parses match timelines on the fly, and returns aggregated analytics. The backend caches the current ranked season number in memory and uses a small Redis record to share MCSR API rate-limit state across Vercel instances.
 
 ## How data flows
 
@@ -41,6 +41,7 @@ There is no database. Every request pulls fresh data from MCSR Ranked, parses ma
 | `services/parsers.py` | Transforms raw MCSR JSON into typed Python dicts — player profiles, match lists, and filtered timelines. |
 | `services/analytics.py` | Core analytics engine. Extracts checkpoint/split times from timelines, aggregates stats across runs, computes seed-type impact and season summaries. |
 | `services/season.py` | Resolves the active ranked season (cached probe against a known player's recent match). |
+| `services/rate_limit.py` | Parses MCSR quota headers and persists the shared 500-request window. |
 
 ### Key analytics concepts
 
@@ -66,6 +67,7 @@ For each checkpoint the backend computes average time, best time, and consistenc
 | Endpoint | Description |
 |---|---|
 | `GET /api/meta/current-season` | Active ranked season number |
+| `GET /api/meta/rate-limit` | Last observed shared MCSR API usage and reset time; does not call MCSR |
 | `GET /api/players/{username}` | Full profile: player summary + analytics + recent runs |
 | `GET /api/players/{username}?season=N&count=M` | Same, scoped to season `N` with `M` matches analyzed |
 | `GET /api/players/{username}/summary` | Lightweight player data without match analytics |
@@ -153,7 +155,22 @@ The root `vercel.json` deploys the Next.js frontend and FastAPI backend as two [
 2. In the project's Build and Deployment settings, select **Services** as the Framework Preset.
 3. Deploy. Do not add `NEXT_PUBLIC_API_BASE_URL` or `BACKEND_URL` manually. Vercel creates the private `BACKEND_URL` service binding automatically.
 
+### Shared API limit storage
+
+MCSR permits 500 API requests per 10-minute window. The backend reads MCSR's `ratelimit` response headers and the dashboard shows the observed shared usage, such as `255/500`, plus the reset countdown.
+
+For reliable state across Vercel instances, add an **Upstash Redis** integration to the Vercel project and redeploy. The integration supplies `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`; do not expose either variable to the browser. Without those variables, local development automatically uses process memory.
+
+If a request exhausts the allowance partway through an analysis, the API returns the completed portion with HTTP 206. Later searches receive HTTP 429 until the reported window resets.
+
 To exercise the integrated routing locally with the Vercel CLI, run `vercel dev -L` from the repository root. The regular two-terminal `uvicorn` plus `npm run dev` workflow above remains supported.
+
+Run the backend rate-limit tests with:
+
+```bash
+cd backend
+.venv/bin/python -m unittest discover -s tests -v
+```
 
 ## Project structure
 
@@ -171,7 +188,8 @@ MCSR-Stats-Tracker/
 │       ├── mcsr_client.py      MCSR API HTTP client
 │       ├── parsers.py          Raw JSON → typed dicts
 │       ├── analytics.py        Timeline parsing + stat aggregation
-│       └── season.py           Current season resolution
+│       ├── season.py           Current season resolution
+│       └── rate_limit.py       Shared MCSR request-budget tracking
 └── frontend/
     ├── app/
     │   ├── layout.tsx          Root layout, fonts, dark theme
@@ -183,7 +201,7 @@ MCSR-Stats-Tracker/
 
 ## Design notes
 
-- **No persistence** — the backend is a stateless proxy/analytics layer. Response times depend on how many matches are analyzed (each requires a separate MCSR API call for timeline data).
+- **Minimal persistence** — player and match data are not stored. Redis holds only the most recently observed MCSR rate-limit window; response times still depend on how many match timelines are requested.
 - **Completed runs only** — checkpoint and split averages are computed from runs where the player finished (dragon death). Forfeits, resets, and decays are tracked separately in the recent-runs list.
 - **Graceful degradation** — if a player has no ranked match data for the selected season, the dashboard shows profile summary stats with a banner explaining the missing data.
 - **Season awareness** — users can browse historical seasons. The backend auto-detects the current season and defaults to it when none is specified.

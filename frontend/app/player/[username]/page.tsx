@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import ProfileDashboard from "@/components/ProfileDashboard";
-import { fetchPlayerProfile, ApiError } from "@/lib/api";
-import type { ProfileQuery } from "@/lib/types";
+import ApiLimitScreen from "@/components/ApiLimitScreen";
+import { fetchPlayerProfile, fetchRateLimitStatus, ApiError } from "@/lib/api";
+import { EMPTY_API_RATE_LIMIT, type ApiRateLimit, type ProfileQuery } from "@/lib/types";
 
 function parseQuery(
   searchParams: Record<string, string | string[] | undefined>
@@ -33,13 +34,28 @@ export default async function PlayerPage({
 }) {
   const { username } = params;
   const query = parseQuery(searchParams);
+  let rateLimit: ApiRateLimit = EMPTY_API_RATE_LIMIT;
 
   try {
+    rateLimit = await fetchRateLimitStatus();
+    if (rateLimit.exhausted) {
+      return <ApiLimitScreen status={rateLimit} />;
+    }
+
     const profile = await fetchPlayerProfile(username, query);
-    return <ProfileDashboard username={username} profile={profile} />;
+    return (
+      <ProfileDashboard
+        username={username}
+        profile={profile}
+        initialRateLimit={rateLimit}
+      />
+    );
   } catch (err) {
     if (err instanceof ApiError && err.status === 404) {
       notFound();
+    }
+    if (err instanceof ApiError && err.status === 429) {
+      return <ApiLimitScreen status={err.rateLimit ?? rateLimit} />;
     }
 
     return (

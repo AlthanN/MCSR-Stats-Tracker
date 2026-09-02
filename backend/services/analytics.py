@@ -559,6 +559,8 @@ def _empty_analytics() -> dict:
         "splitAverages": {},
         "checkpointAverages": {},
         "parsedById": {},
+        "listedMatchCount": 0,
+        "analyzedMatchCount": 0,
     }
 
 
@@ -695,6 +697,9 @@ async def build_analytics(
             if v
         },
         "parsedById": parsed_by_id,
+        "listedMatchCount": len(matches_data),
+        "analyzedMatchCount": len(runs)
+        + sum(1 for match in matches_data if _is_decay_match(match)),
     }
 
 

@@ -1,6 +1,6 @@
 import time
 
-from services.mcsr_client import _ensure_client, init_client
+from services.mcsr_client import request_mcsr
 
 CURRENT_SEASON_FALLBACK = 11
 _CACHE_TTL_SECONDS = 3600
@@ -17,12 +17,9 @@ async def get_current_season() -> int:
     if _cached_season is not None and now - _cached_at < _CACHE_TTL_SECONDS:
         return _cached_season
 
-    init_client()
-    client = _ensure_client()
-
     try:
         # Omitting season returns matches from the active season.
-        resp = await client.get(
+        resp = await request_mcsr(
             "/users/Feinberg/matches",
             params={"count": 1, "type": 2},
         )

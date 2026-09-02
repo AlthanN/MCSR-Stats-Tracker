@@ -135,10 +135,37 @@ export interface RunDetail extends RecentRun {
   events?: MatchEvent[];
 }
 
+export interface ApiRateLimit {
+  limit: number;
+  used: number;
+  remaining: number;
+  windowSeconds: number;
+  resetAt: string | null;
+  observedAt: string | null;
+  exhausted: boolean;
+  estimated: boolean;
+}
+
+export const EMPTY_API_RATE_LIMIT: ApiRateLimit = {
+  limit: 500,
+  used: 0,
+  remaining: 500,
+  windowSeconds: 600,
+  resetAt: null,
+  observedAt: null,
+  exhausted: false,
+  estimated: true,
+};
+
 export interface ProfileMeta {
   currentSeason: number;
   selectedSeason: number;
   matchCount: number;
+  requestedMatchCount: number;
+  analyzedMatchCount: number;
+  partialData: boolean;
+  partialReason: string | null;
+  apiRateLimit: ApiRateLimit;
 }
 
 export interface SeasonStatsSummary {

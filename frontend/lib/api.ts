@@ -6,8 +6,9 @@ import type {
   PlayerData,
   ProfileQuery,
   SeasonStatsSummary,
+  ApiRateLimit,
 } from "./types";
-import { EMPTY_SEASON_STATS } from "./types";
+import { EMPTY_API_RATE_LIMIT, EMPTY_SEASON_STATS } from "./types";
 
 function getApiBaseUrl(): string {
   // Vercel injects this private service binding for server-side requests.
@@ -24,9 +25,17 @@ function getApiBaseUrl(): string {
 
 export class ApiError extends Error {
   status: number;
-  constructor(message: string, status: number) {
+  code?: string;
+  rateLimit?: ApiRateLimit;
+  constructor(
+    message: string,
+    status: number,
+    options: { code?: string; rateLimit?: ApiRateLimit } = {}
+  ) {
     super(message);
     this.status = status;
+    this.code = options.code;
+    this.rateLimit = options.rateLimit;
     this.name = "ApiError";
   }
 }
@@ -38,13 +47,21 @@ async function getJson<T>(path: string, revalidate = 30): Promise<T> {
 
   if (!res.ok) {
     let detail = res.statusText;
+    let code: string | undefined;
+    let rateLimit: ApiRateLimit | undefined;
     try {
       const body = await res.json();
-      detail = body.detail ?? detail;
+      if (typeof body.detail === "string") {
+        detail = body.detail;
+      } else if (body.detail && typeof body.detail === "object") {
+        detail = body.detail.message ?? detail;
+        code = body.detail.code;
+        rateLimit = body.detail.rateLimit;
+      }
     } catch {
       // body wasn't JSON
     }
-    throw new ApiError(detail, res.status);
+    throw new ApiError(detail, res.status, { code, rateLimit });
   }
 
   return res.json() as Promise<T>;
@@ -75,6 +92,15 @@ function normalizeProfile(raw: FullProfile): FullProfile {
     splits: raw.splits ?? [],
     seedTypes: raw.seedTypes ?? [],
     checkpointBestFromPb: raw.checkpointBestFromPb ?? false,
+    meta: {
+      ...raw.meta,
+      requestedMatchCount: raw.meta.requestedMatchCount ?? raw.meta.matchCount,
+      analyzedMatchCount:
+        raw.meta.analyzedMatchCount ?? raw.recentRuns?.length ?? 0,
+      partialData: raw.meta.partialData ?? false,
+      partialReason: raw.meta.partialReason ?? null,
+      apiRateLimit: raw.meta.apiRateLimit ?? EMPTY_API_RATE_LIMIT,
+    },
   };
 }
 
@@ -91,6 +117,11 @@ export function fetchPlayerProfile(
 /** Active MCSR ranked season. */
 export function fetchCurrentSeason(): Promise<{ currentSeason: number }> {
   return getJson<{ currentSeason: number }>("/api/meta/current-season", 300);
+}
+
+/** Shared MCSR API budget. This endpoint does not consume an MCSR request. */
+export function fetchRateLimitStatus(): Promise<ApiRateLimit> {
+  return getJson<ApiRateLimit>("/api/meta/rate-limit", 0);
 }
 
 /** Lightweight player summary without match analytics. */

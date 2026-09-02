@@ -62,10 +62,26 @@ class RunDetail(RecentRun):
     events: list[MatchEvent] = []
 
 
+class ApiRateLimit(BaseModel):
+    limit: int = 500
+    used: int = 0
+    remaining: int = 500
+    windowSeconds: int = 600
+    resetAt: str | None = None
+    observedAt: str | None = None
+    exhausted: bool = False
+    estimated: bool = True
+
+
 class ProfileMeta(BaseModel):
     currentSeason: int
     selectedSeason: int
     matchCount: int
+    requestedMatchCount: int
+    analyzedMatchCount: int
+    partialData: bool = False
+    partialReason: str | None = None
+    apiRateLimit: ApiRateLimit
 
 
 class SeasonStatsSummary(BaseModel):
