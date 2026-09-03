@@ -14,7 +14,6 @@ class RateLimitApiTests(unittest.TestCase):
         tracker = RateLimitTracker(remaining=0, reset_at=time.time() + 300)
         with (
             patch("main.load_rate_limit", AsyncMock(return_value=tracker)),
-            patch("main.persist_rate_limit", AsyncMock()),
             TestClient(app) as client,
         ):
             response = client.get("/api/meta/current-season")
@@ -28,7 +27,10 @@ class RateLimitApiTests(unittest.TestCase):
     def test_status_endpoint_does_not_consume_upstream_budget(self):
         tracker = RateLimitTracker(remaining=245, reset_at=time.time() + 300)
         with (
-            patch("main.load_rate_limit", AsyncMock(return_value=tracker)),
+            patch(
+                "main.get_rate_limit_status",
+                AsyncMock(return_value=tracker.to_dict()),
+            ),
             TestClient(app) as client,
         ):
             response = client.get("/api/meta/rate-limit")
@@ -63,7 +65,6 @@ class RateLimitApiTests(unittest.TestCase):
 
         with (
             patch("main.load_rate_limit", AsyncMock(return_value=tracker)),
-            patch("main.persist_rate_limit", AsyncMock()),
             patch("main.get_current_season", AsyncMock(return_value=11)),
             patch("main.fetch_user_data", AsyncMock(return_value={"data": {"uuid": "u"}})),
             patch("main.parse_player_data", return_value=player),

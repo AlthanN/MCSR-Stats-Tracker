@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import BaseModel
 
 from models.player import PlayerData
@@ -71,6 +73,8 @@ class ApiRateLimit(BaseModel):
     observedAt: str | None = None
     exhausted: bool = False
     estimated: bool = True
+    syncState: Literal["updating", "current", "estimated"] = "estimated"
+    activeOperations: int = 0
 
 
 class ProfileMeta(BaseModel):

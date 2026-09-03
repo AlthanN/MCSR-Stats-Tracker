@@ -99,7 +99,10 @@ function normalizeProfile(raw: FullProfile): FullProfile {
         raw.meta.analyzedMatchCount ?? raw.recentRuns?.length ?? 0,
       partialData: raw.meta.partialData ?? false,
       partialReason: raw.meta.partialReason ?? null,
-      apiRateLimit: raw.meta.apiRateLimit ?? EMPTY_API_RATE_LIMIT,
+      apiRateLimit: {
+        ...EMPTY_API_RATE_LIMIT,
+        ...(raw.meta.apiRateLimit ?? {}),
+      },
     },
   };
 }
@@ -121,7 +124,10 @@ export function fetchCurrentSeason(): Promise<{ currentSeason: number }> {
 
 /** Shared MCSR API budget. This endpoint does not consume an MCSR request. */
 export function fetchRateLimitStatus(): Promise<ApiRateLimit> {
-  return getJson<ApiRateLimit>("/api/meta/rate-limit", 0);
+  return getJson<ApiRateLimit>("/api/meta/rate-limit", 0).then((status) => ({
+    ...EMPTY_API_RATE_LIMIT,
+    ...status,
+  }));
 }
 
 /** Lightweight player summary without match analytics. */

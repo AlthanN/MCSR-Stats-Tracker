@@ -26,9 +26,12 @@ from services.analytics import (
 )
 from services.season import get_current_season, resolve_season
 from services.rate_limit import (
+    begin_rate_limit_operation,
+    finish_rate_limit_operation,
+    get_rate_limit_status,
     get_request_tracker,
     load_rate_limit,
-    persist_rate_limit,
+    maybe_publish_rate_limit,
     rate_limit_error_detail,
     reset_request_tracker,
     set_request_tracker,
@@ -75,6 +78,7 @@ async def rate_limit_scope(request: Request, call_next):
                 content={"detail": rate_limit_error_detail(tracker)},
                 headers={"Cache-Control": "no-store"},
             )
+        await begin_rate_limit_operation(tracker)
         try:
             return await call_next(request)
         except MCSRRateLimitBlocked:
@@ -84,7 +88,8 @@ async def rate_limit_scope(request: Request, call_next):
                 headers={"Cache-Control": "no-store"},
             )
     finally:
-        await persist_rate_limit(tracker)
+        await maybe_publish_rate_limit(tracker, force=True)
+        await finish_rate_limit_operation(tracker)
         reset_request_tracker(token)
 
 
@@ -98,7 +103,7 @@ def _upstream_error(message: str = "Failed to reach MCSR API") -> HTTPException:
 @app.get("/api/meta/rate-limit", response_model=ApiRateLimit)
 async def api_rate_limit(response: Response):
     response.headers["Cache-Control"] = "no-store"
-    return (await load_rate_limit()).to_dict()
+    return await get_rate_limit_status()
 
 
 @app.get("/api/meta/current-season")

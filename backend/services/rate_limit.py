@@ -1,15 +1,21 @@
+import asyncio
 import json
 import os
 import re
 import time
+import uuid
 from contextvars import ContextVar
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
 
 DEFAULT_LIMIT = 500
 DEFAULT_WINDOW_SECONDS = 600
 REDIS_KEY = "mcsr:rate-limit:global"
+ACTIVE_OPERATIONS_KEY = "mcsr:rate-limit:active"
+OPERATION_LEASE_SECONDS = 60
+PUBLISH_EVERY_ATTEMPTS = 10
+PUBLISH_EVERY_SECONDS = 1.0
 _HEADER_VALUE = re.compile(r"(?:^|;)\s*([qrtw])=(\d+)")
 
 
@@ -22,6 +28,10 @@ class RateLimitTracker:
     observed_at: float | None = None
     estimated: bool = True
     attempted: int = 0
+    operation_id: str | None = field(default=None, repr=False)
+    last_published_at: float = field(default=0.0, repr=False)
+    last_published_attempt: int = field(default=0, repr=False)
+    publish_lock: asyncio.Lock = field(default_factory=asyncio.Lock, repr=False)
 
     @property
     def exhausted(self) -> bool:
@@ -81,6 +91,8 @@ class RateLimitTracker:
             "observedAt": _iso(self.observed_at),
             "exhausted": self.exhausted,
             "estimated": self.estimated,
+            "syncState": "estimated" if self.estimated else "current",
+            "activeOperations": 0,
         }
 
     @classmethod
@@ -122,6 +134,7 @@ _tracker_var: ContextVar[RateLimitTracker | None] = ContextVar(
     "mcsr_rate_limit_tracker", default=None
 )
 _memory_state: dict | None = None
+_memory_active: dict[str, float] = {}
 _redis = None
 
 
@@ -212,6 +225,97 @@ async def persist_rate_limit(tracker: RateLimitTracker) -> None:
             await client.set(REDIS_KEY, json.dumps(status), ex=ttl)
         except Exception as fallback_exc:
             print(f"error writing fallback rate-limit state: {fallback_exc}")
+
+
+async def begin_rate_limit_operation(tracker: RateLimitTracker) -> None:
+    tracker.operation_id = uuid.uuid4().hex
+    tracker.last_published_at = 0.0
+    tracker.last_published_attempt = 0
+    await _renew_operation(tracker)
+
+
+async def _renew_operation(tracker: RateLimitTracker) -> None:
+    if tracker.operation_id is None:
+        return
+    expires_at = time.time() + OPERATION_LEASE_SECONDS
+    _memory_active[tracker.operation_id] = expires_at
+    client = _redis_client()
+    if client is not None:
+        try:
+            await client.zadd(
+                ACTIVE_OPERATIONS_KEY, {tracker.operation_id: expires_at}
+            )
+        except Exception as exc:
+            print(f"error renewing rate-limit operation: {exc}")
+
+
+async def finish_rate_limit_operation(tracker: RateLimitTracker) -> None:
+    operation_id = tracker.operation_id
+    if operation_id is None:
+        return
+    _memory_active.pop(operation_id, None)
+    client = _redis_client()
+    if client is not None:
+        try:
+            await client.zrem(ACTIVE_OPERATIONS_KEY, operation_id)
+        except Exception as exc:
+            print(f"error clearing rate-limit operation: {exc}")
+    tracker.operation_id = None
+
+
+async def maybe_publish_rate_limit(
+    tracker: RateLimitTracker, *, force: bool = False
+) -> bool:
+    if tracker.operation_id is None:
+        return False
+    now = time.time()
+    due = (
+        tracker.last_published_attempt == 0 and tracker.attempted > 0
+    ) or tracker.attempted - tracker.last_published_attempt >= PUBLISH_EVERY_ATTEMPTS
+    due = due or now - tracker.last_published_at >= PUBLISH_EVERY_SECONDS
+    if not force and not due:
+        return False
+
+    async with tracker.publish_lock:
+        now = time.time()
+        due = (
+            tracker.last_published_attempt == 0 and tracker.attempted > 0
+        ) or tracker.attempted - tracker.last_published_attempt >= PUBLISH_EVERY_ATTEMPTS
+        due = due or now - tracker.last_published_at >= PUBLISH_EVERY_SECONDS
+        if not force and not due:
+            return False
+        await persist_rate_limit(tracker)
+        await _renew_operation(tracker)
+        tracker.last_published_attempt = tracker.attempted
+        tracker.last_published_at = now
+        return True
+
+
+async def active_operation_count() -> int:
+    now = time.time()
+    for operation_id, expires_at in list(_memory_active.items()):
+        if expires_at <= now:
+            _memory_active.pop(operation_id, None)
+
+    client = _redis_client()
+    if client is not None:
+        try:
+            await client.zremrangebyscore(ACTIVE_OPERATIONS_KEY, "-inf", now)
+            return int(await client.zcard(ACTIVE_OPERATIONS_KEY))
+        except Exception as exc:
+            print(f"error reading active rate-limit operations: {exc}")
+    return len(_memory_active)
+
+
+async def get_rate_limit_status() -> dict:
+    tracker = await load_rate_limit()
+    active = await active_operation_count()
+    status = tracker.to_dict()
+    status["activeOperations"] = active
+    status["syncState"] = (
+        "updating" if active > 0 else "estimated" if tracker.estimated else "current"
+    )
+    return status
 
 
 def rate_limit_error_detail(tracker: RateLimitTracker) -> dict:

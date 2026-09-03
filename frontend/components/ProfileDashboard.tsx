@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useState } from "react";
 import SearchBar from "./SearchBar";
 import PlayerSummary from "./PlayerSummary";
 import ProfileFilters from "./ProfileFilters";
@@ -11,9 +11,9 @@ import SplitBreakdownTable from "./SplitBreakdownTable";
 import SeedTypePerformance from "./SeedTypePerformance";
 import RecentRunsList from "./RecentRunsList";
 import RunDetailModal from "./RunDetailModal";
-import ApiRateLimitMeter from "./ApiRateLimitMeter";
+import ApiRateLimitMeter, { useApiRateLimit } from "./ApiRateLimitMeter";
 import type { ApiRateLimit, FullProfile, RecentRun, RunDetail } from "@/lib/types";
-import { fetchRateLimitStatus, fetchRunDetail, ApiError } from "@/lib/api";
+import { fetchRunDetail, ApiError } from "@/lib/api";
 
 function newestStatus(a: ApiRateLimit, b: ApiRateLimit): ApiRateLimit {
   const aTime = a.observedAt ? new Date(a.observedAt).getTime() : 0;
@@ -33,24 +33,16 @@ export default function ProfileDashboard({
   const [activeRun, setActiveRun] = useState<RunDetail | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [loadingRun, setLoadingRun] = useState(false);
-  const [rateLimit, setRateLimit] = useState(() =>
-    newestStatus(initialRateLimit, profile.meta.apiRateLimit)
-  );
+  const {
+    status: rateLimit,
+    setStatus: setRateLimit,
+    refresh: refreshRateLimit,
+    unavailable: rateLimitUnavailable,
+    checking: rateLimitChecking,
+  } = useApiRateLimit(newestStatus(initialRateLimit, profile.meta.apiRateLimit));
   const [rateWarning, setRateWarning] = useState<string | null>(null);
   const { hasMatchData, meta } = profile;
   const hasData = hasMatchData ?? (profile.recentRuns?.length ?? 0) > 0;
-
-  useEffect(() => {
-    async function refreshRateLimit() {
-      try {
-        setRateLimit(await fetchRateLimitStatus());
-      } catch {
-        // Keep the last known authoritative value.
-      }
-    }
-    const timer = window.setInterval(refreshRateLimit, 15000);
-    return () => window.clearInterval(timer);
-  }, []);
 
   async function handleSelectRun(run: RecentRun) {
     if (run.isDecay) return;
@@ -79,11 +71,7 @@ export default function ProfileDashboard({
       setActiveRun(null);
     } finally {
       setLoadingRun(false);
-      try {
-        setRateLimit(await fetchRateLimitStatus());
-      } catch {
-        // Keep the last known value.
-      }
+      await refreshRateLimit();
     }
   }
 
@@ -91,7 +79,11 @@ export default function ProfileDashboard({
     <div className="min-h-screen flex flex-col">
       <header className="px-4 sm:px-8 py-4 border-b border-border flex flex-col sm:flex-row sm:items-end gap-4">
         <SearchBar size="compact" initialValue={username} />
-        <ApiRateLimitMeter status={rateLimit} />
+        <ApiRateLimitMeter
+          status={rateLimit}
+          unavailable={rateLimitUnavailable}
+          checking={rateLimitChecking}
+        />
       </header>
 
       <div className="flex-1 px-4 sm:px-8 py-8 max-w-4xl mx-auto w-full flex flex-col gap-8">

@@ -3,7 +3,7 @@ import time
 
 import httpx
 
-from services.rate_limit import get_request_tracker
+from services.rate_limit import get_request_tracker, maybe_publish_rate_limit
 
 BASE_URL = "https://mcsrranked.com/api"
 DEFAULT_MATCH_COUNT = 100
@@ -63,6 +63,7 @@ async def request_mcsr(path: str, *, params: dict | None = None) -> httpx.Respon
     if response.status_code == 429:
         tracker.remaining = 0
         tracker.reset_at = tracker.reset_at or (time.time() + tracker.window_seconds)
+    await maybe_publish_rate_limit(tracker)
     return response
 
 

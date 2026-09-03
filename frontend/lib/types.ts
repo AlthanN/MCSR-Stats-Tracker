@@ -144,6 +144,8 @@ export interface ApiRateLimit {
   observedAt: string | null;
   exhausted: boolean;
   estimated: boolean;
+  syncState: "updating" | "current" | "estimated";
+  activeOperations: number;
 }
 
 export const EMPTY_API_RATE_LIMIT: ApiRateLimit = {
@@ -155,6 +157,8 @@ export const EMPTY_API_RATE_LIMIT: ApiRateLimit = {
   observedAt: null,
   exhausted: false,
   estimated: true,
+  syncState: "estimated",
+  activeOperations: 0,
 };
 
 export interface ProfileMeta {

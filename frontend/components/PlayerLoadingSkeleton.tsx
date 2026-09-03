@@ -1,3 +1,5 @@
+import { LiveApiRateLimitMeter } from "./ApiRateLimitMeter";
+
 export default function PlayerLoadingSkeleton({
   username,
   message,
@@ -11,8 +13,9 @@ export default function PlayerLoadingSkeleton({
 
   return (
     <div className="min-h-screen flex flex-col bg-bg">
-      <div className="px-4 sm:px-8 py-4 border-b border-border">
-        <div className="h-10 card animate-pulse-glow" />
+      <div className="px-4 sm:px-8 py-4 border-b border-border flex flex-col sm:flex-row sm:items-end gap-4">
+        <div className="h-10 card animate-pulse-glow flex-1" />
+        <LiveApiRateLimitMeter />
       </div>
       <div className="flex-1 px-4 sm:px-8 py-8 max-w-4xl mx-auto w-full flex flex-col gap-8">
         <div className="h-24 card animate-pulse-glow" />

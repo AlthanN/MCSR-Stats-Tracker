@@ -157,9 +157,9 @@ The root `vercel.json` deploys the Next.js frontend and FastAPI backend as two [
 
 ### Shared API limit storage
 
-MCSR permits 500 API requests per 10-minute window. The backend reads MCSR's `ratelimit` response headers and the dashboard shows the observed shared usage, such as `255/500`, plus the reset countdown.
+MCSR permits 500 API requests per 10-minute window. The backend reads MCSR's `ratelimit` response headers and the dashboard shows the observed shared usage, such as `255/500`, plus the reset countdown. A status dot identifies whether that value is being updated by an active analysis, is up to date, is estimated, or is temporarily unavailable. While an analysis is active, the backend publishes progress at most once per second or every 10 upstream attempts and the frontend polls the lightweight status endpoint every two seconds.
 
-For reliable state across Vercel instances, add an **Upstash Redis** integration to the Vercel project and redeploy. The integration supplies `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`; do not expose either variable to the browser. Without those variables, local development automatically uses process memory.
+For reliable state and live activity indicators across Vercel instances, add an **Upstash Redis** integration to the Vercel project and redeploy. The integration supplies `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`; do not expose either variable to the browser. Without those variables, local development automatically uses process memory. Active-operation records are short-lived leases, so an interrupted request clears itself from the indicator after about one minute.
 
 If a request exhausts the allowance partway through an analysis, the API returns the completed portion with HTTP 206. Later searches receive HTTP 429 until the reported window resets.
 
